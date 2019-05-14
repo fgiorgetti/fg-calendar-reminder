@@ -42,7 +42,7 @@ AUDIO_PLAY_CMD = ["play", "5glasses.ogg"]
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 # Initialize logging
-logging.basicConfig(level=logging.ERROR,
+logging.basicConfig(level=logging.INFO, filename='/tmp/fg-calendar-reminder.log',
                     format='%(asctime)s [%(levelname)s] (%(pathname)s:%(lineno)s) - %(message)s')
 LOGGER = logging.getLogger(__name__)
 
@@ -82,18 +82,17 @@ def create_daemon():
         LOGGER.info("Daemon has been started (PID=%s)" % pid)
         os._exit(0)
 
-    try:
-        while True:
+    while True:
+        try:
             monitor_events()
-            wait_time = 60 - datetime.datetime.now().second
-            LOGGER.debug("Sleeping for %d" % wait_time)
-            time.sleep(wait_time)
-    except SystemExit as ex:
-        LOGGER.warn("Exiting. Reason: %s" % ex)
-        pass
-    except Exception as ex:
-        LOGGER.error("Unexpected exception: %s" % ex)
-        return 1
+        except SystemExit as ex:
+            LOGGER.warn("Exiting. Reason: %s" % ex)
+            break
+        except Exception as ex:
+            LOGGER.error("Unexpected exception: %s" % ex, ex)
+        wait_time = 60 - datetime.datetime.now().second
+        LOGGER.debug("Sleeping for %d" % wait_time)
+        time.sleep(wait_time)
 
     LOGGER.info("Exiting fg-calendar-reminder")
     return 0
@@ -139,7 +138,7 @@ def monitor_events():
         start = event['start'].get('dateTime', event['start'].get('date'))
         LOGGER.debug(start, event['summary'])
         start_datetime = datetime.datetime.fromisoformat(start)
-        mins_left = round((start_datetime.replace(tzinfo=None) - now_datetime).seconds / 60)
+        mins_left = round((start_datetime.replace(tzinfo=None) - now_datetime).total_seconds() / 60)
         if mins_left in MINUTES_LEFT:
             alerts.append(Alert(event['summary'], start, mins_left))
 
